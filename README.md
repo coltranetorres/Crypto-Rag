@@ -10,8 +10,7 @@ This project implements a complete RAG pipeline that enables question-answering 
 - **ChromaDB**: Vector database for efficient similarity search
 - **FastAPI**: High-performance backend API
 - **Streamlit**: Interactive web frontend
-- **RAGAS**: Evaluation framework for RAG systems
-- **MLflow**: Experiment tracking and observability
+- **MLflow**: Experiment tracking and observability for evaluation
 
 ## Features
 
@@ -19,7 +18,7 @@ This project implements a complete RAG pipeline that enables question-answering 
 - 🔍 **Vector Search**: Efficient similarity search using ChromaDB
 - 🤖 **RAG Agent**: Intelligent query processing with Strands framework
 - 🛡️ **Guardrails**: LLM-based content moderation for inputs and outputs
-- 📊 **Evaluation**: Comprehensive evaluation pipeline with RAGAS and MLflow
+- 📊 **Evaluation**: Comprehensive evaluation pipeline with MLflow tracking
 - 🔌 **Dependency Injection**: Clean architecture with DI container
 - 📈 **Observability**: Detailed metrics and logging throughout the system
 - 🌐 **Web Interface**: User-friendly Streamlit frontend
@@ -94,11 +93,12 @@ Manages component lifecycle and dependencies:
 - **Settings Integration**: Centralized configuration management
 
 #### 6. **Evaluation** (`src/evaluation.py`)
-RAG system evaluation with RAGAS:
-- **RAGAS Integration**: Uses RAGAS metrics for evaluation
-- **MLflow Tracking**: Experiment tracking and metrics logging
-- **Correctness Metric**: Custom discrete metric for answer quality
+RAG system evaluation with MLflow:
+- **MLflow Tracking**: Comprehensive experiment tracking and metrics logging
+- **Correctness Metric**: LLM-based correctness evaluation (pass/fail)
 - **Batch Evaluation**: Processes ground truth datasets
+- **Nested Runs**: Individual run tracking for each evaluation sample
+- **Metrics Logging**: Latency, token usage, and correctness scores
 
 #### 7. **Configuration** (`src/config/`)
 Centralized configuration management:
@@ -296,7 +296,7 @@ Crypto-Rag/
 │   ├── ingestion.py       # Document processing
 │   ├── openrouter_provider.py  # LLM/embedding provider
 │   ├── guardrails.py      # Content moderation
-│   ├── evaluation.py      # RAGAS evaluation
+│   ├── evaluation.py      # MLflow-based evaluation
 │   ├── di_container.py    # Dependency injection
 │   └── exceptions.py      # Custom exceptions
 ├── scripts/                # Utility scripts
@@ -386,7 +386,7 @@ Test modules:
 ### Adding New Features
 
 1. **New Document Types**: Extend `PDFDocumentLoader` in `src/ingestion.py`
-2. **New Metrics**: Add to `src/evaluation.py` and integrate with RAGAS
+2. **New Metrics**: Add to `src/evaluation.py` and log to MLflow
 3. **New Tools**: Add tools to the Strands agent in `src/rag_agent.py`
 4. **New Endpoints**: Add routes to `backend/main.py`
 
@@ -446,5 +446,4 @@ Custom exceptions in `src/exceptions.py`:
 - **Strands**: Modern agent framework
 - **OpenRouter**: Unified LLM API
 - **ChromaDB**: Vector database
-- **RAGAS**: RAG evaluation framework
-- **MLflow**: Experiment tracking
+- **MLflow**: Experiment tracking and observability
