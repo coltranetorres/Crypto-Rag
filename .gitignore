@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ChromaDB databases
+chroma_db/
+chroma_db_test/
+*.sqlite3
+*.db
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Experiment results
+experiments/
+*.csv
+
+# Data files
+.data/
+*.pdf
+*.docx
+*.xlsx
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Markdown files (as requested)
+*.md
+!README.md
+!QUICKSTART.md
+!README_API.md
+
+# Test outputs
+.pytest_cache/
+.coverage
+htmlcov/
+
