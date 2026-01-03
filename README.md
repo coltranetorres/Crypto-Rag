@@ -113,6 +113,7 @@ Multi-layer LLM security with defense-in-depth:
 - **Jailbreak Detection**: Detects roleplay, mode switching, DAN attacks, and similar patterns
 - **Prompt Leaking Detection**: Prevents extraction of system prompts and instructions
 - **Input Sanitization**: Removes dangerous delimiters and injection attempts
+- **Output Sanitization**: Prevents system prompts and instructions from leaking in responses
 - **Defense-in-Depth**: Pattern filtering + LLM-based validation layers
 - **Fail-Closed Security**: Blocks requests on errors (secure by default)
 - **Security Audit Logging**: Tracks all blocked requests for monitoring
@@ -146,6 +147,7 @@ The security system uses a **defense-in-depth** approach with multiple layers:
 - ✅ **Prompt Injection**: Attempts to override or modify system instructions
 - ✅ **Jailbreaking**: Roleplay attacks, DAN patterns, mode switching
 - ✅ **Prompt Leaking**: Extraction of system prompts and internal configuration
+- ✅ **Output Leaks**: Sanitization prevents system prompts from leaking in responses
 - ✅ **Obfuscation**: Unicode tricks, invisible characters, encoding attacks
 - ✅ **Context Overflow**: Length limits prevent context window attacks
 
@@ -158,6 +160,12 @@ Fast, cost-free pre-filtering that detects:
 - Prompt leaking attempts (e.g., "what is your system prompt?")
 - Obfuscation techniques (zero-width characters, excessive Unicode)
 - Input length violations
+
+**Output Sanitization**: Also includes output sanitization to prevent leaks:
+- Removes system prompt markers and delimiters from responses
+- Filters out leaked instructions and CORE RULES text
+- Removes instruction-like lines that might reveal internal prompts
+- Preserves legitimate content while removing sensitive information
 
 #### Guardrails (`src/guardrails.py`)
 

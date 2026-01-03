@@ -188,6 +188,10 @@ INJECTION RESISTANCE:
         if should_block:
             answer = f"I cannot provide a response to this request. {reason or 'Response blocked by content moderation.'}"
         
+        # Sanitize output to prevent leaks (defense against prompt/system prompt leaking)
+        if self.guardrails_validator and hasattr(self.guardrails_validator, 'pattern_filter'):
+            answer = self.guardrails_validator.pattern_filter.sanitize_output(answer)
+        
         total_latency = time.time() - start_time
         
         return {
@@ -292,6 +296,10 @@ Answer:"""
         should_block, reason = self._check_output(question, answer)
         if should_block:
             answer = f"I cannot provide a response to this request. {reason or 'Response blocked by content moderation.'}"
+        
+        # Sanitize output to prevent leaks (defense against prompt/system prompt leaking)
+        if self.guardrails_validator and hasattr(self.guardrails_validator, 'pattern_filter'):
+            answer = self.guardrails_validator.pattern_filter.sanitize_output(answer)
         
         total_latency = time.time() - start_time
         

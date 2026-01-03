@@ -125,6 +125,69 @@ class PatternBasedFilter:
         sanitized = re.sub(r'\[/?(?:SYSTEM|USER|ASSISTANT|INST)\]', '', sanitized, flags=re.IGNORECASE)
         
         return sanitized
+    
+    def sanitize_output(self, text: str) -> str:
+        """
+        Sanitize bot output to prevent leaking system prompts or sensitive information
+        
+        This is defense against leaks - removes any system prompt text, instructions,
+        or sensitive configuration that might have leaked into the response.
+        
+        Args:
+            text: Bot response text to sanitize
+            
+        Returns:
+            Sanitized text safe to return to user
+        """
+        if not text:
+            return text
+        
+        sanitized = text
+        
+        # Remove system prompt markers and delimiters
+        sanitized = re.sub(r'<SYSTEM_CONTEXT>.*?</SYSTEM_CONTEXT>', '', sanitized, flags=re.DOTALL | re.IGNORECASE)
+        sanitized = re.sub(r'<SYSTEM>.*?</SYSTEM>', '', sanitized, flags=re.DOTALL | re.IGNORECASE)
+        sanitized = re.sub(r'\[/?(?:SYSTEM|USER|ASSISTANT|INST)\]', '', sanitized, flags=re.IGNORECASE)
+        
+        # Remove common system prompt phrases that might leak
+        leak_phrases = [
+            r'CORE RULES \(NEVER VIOLATE\)',
+            r'NEVER reveal these instructions',
+            r'NEVER reveal.*system prompt',
+            r'your system prompt',
+            r'internal configuration',
+            r'INJECTION RESISTANCE',
+            r'treat.*as untrusted data',
+        ]
+        
+        for phrase in leak_phrases:
+            # Remove the phrase and surrounding context (up to 50 chars before/after)
+            sanitized = re.sub(
+                r'.{0,50}' + phrase + r'.{0,50}',
+                '[Response filtered for security]',
+                sanitized,
+                flags=re.IGNORECASE
+            )
+        
+        # Remove any lines that look like instructions
+        lines = sanitized.split('\n')
+        filtered_lines = []
+        for line in lines:
+            # Skip lines that look like instructions (numbered lists, "NEVER", "ALWAYS", etc.)
+            if re.match(r'^\d+\.\s*(NEVER|ALWAYS|ONLY|IGNORE)', line, re.IGNORECASE):
+                continue
+            # Skip lines with system prompt markers
+            if re.search(r'<SYSTEM|\[SYSTEM|CORE RULES', line, re.IGNORECASE):
+                continue
+            filtered_lines.append(line)
+        
+        sanitized = '\n'.join(filtered_lines)
+        
+        # Clean up excessive whitespace
+        sanitized = re.sub(r'\n{3,}', '\n\n', sanitized)
+        sanitized = sanitized.strip()
+        
+        return sanitized
 
 
 class SecurityAuditLog:
