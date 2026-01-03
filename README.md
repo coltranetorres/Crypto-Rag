@@ -17,7 +17,8 @@ This project implements a complete RAG pipeline that enables question-answering 
 - 📚 **Document Ingestion**: PDF document processing with semantic chunking
 - 🔍 **Vector Search**: Efficient similarity search using ChromaDB
 - 🤖 **RAG Agent**: Intelligent query processing with Strands framework
-- 🛡️ **Guardrails**: LLM-based content moderation for inputs and outputs
+- 🛡️ **LLM Security**: Multi-layer defense-in-depth protection against prompt injection, jailbreaking, and prompt leaking
+- 🔒 **Guardrails**: Pattern-based filtering + LLM-based content moderation
 - 📊 **Evaluation**: Comprehensive evaluation pipeline with MLflow tracking
 - 🔌 **Dependency Injection**: Clean architecture with DI container
 - 📈 **Observability**: Detailed metrics and logging throughout the system
@@ -46,6 +47,7 @@ This project implements a complete RAG pipeline that enables question-answering 
 │  │  Strands Agent + Tools             │  │
 │  │  - Retrieval Tool                  │  │
 │  │  - Guardrails Validator            │  │
+│  │  - Pattern-Based Security Filter   │  │
 │  └─────────────────────────────────────┘  │
 └──────────────┬────────────────────────────┘
                │
@@ -104,6 +106,122 @@ RAG system evaluation with MLflow:
 Centralized configuration management:
 - **Settings**: Pydantic-based settings with environment variable support
 - **Logging**: Structured logging configuration
+
+#### 8. **Security** (`src/security.py`, `src/guardrails.py`)
+Multi-layer LLM security with defense-in-depth:
+- **Pattern-Based Filtering**: Fast pre-filtering (no LLM cost) for known attack patterns
+- **Jailbreak Detection**: Detects roleplay, mode switching, DAN attacks, and similar patterns
+- **Prompt Leaking Detection**: Prevents extraction of system prompts and instructions
+- **Input Sanitization**: Removes dangerous delimiters and injection attempts
+- **Defense-in-Depth**: Pattern filtering + LLM-based validation layers
+- **Fail-Closed Security**: Blocks requests on errors (secure by default)
+- **Security Audit Logging**: Tracks all blocked requests for monitoring
+- **System Prompt Hardening**: Injection-resistant instructions in RAG agent
+
+## LLM Security
+
+This project implements comprehensive security measures to protect against common LLM vulnerabilities including prompt injection, jailbreaking, and prompt leaking attacks.
+
+### Security Architecture
+
+The security system uses a **defense-in-depth** approach with multiple layers:
+
+1. **Layer 1: Pattern-Based Filtering** (Fast, No Cost)
+   - Regex-based detection of known attack patterns
+   - Blocks jailbreak attempts, prompt extraction, and obfuscation
+   - Runs before any LLM calls (zero cost, instant)
+
+2. **Layer 2: LLM-Based Validation** (Thorough)
+   - Uses LLM to analyze content for malicious intent
+   - Validates both user inputs and bot responses
+   - Configurable via `guardrails.yaml`
+
+3. **Layer 3: System Prompt Hardening**
+   - Hardened system prompt with explicit security rules
+   - Injection resistance instructions
+   - Treats all user input as untrusted data
+
+### Protected Against
+
+- ✅ **Prompt Injection**: Attempts to override or modify system instructions
+- ✅ **Jailbreaking**: Roleplay attacks, DAN patterns, mode switching
+- ✅ **Prompt Leaking**: Extraction of system prompts and internal configuration
+- ✅ **Obfuscation**: Unicode tricks, invisible characters, encoding attacks
+- ✅ **Context Overflow**: Length limits prevent context window attacks
+
+### Security Features
+
+#### Pattern-Based Filtering (`src/security.py`)
+
+Fast, cost-free pre-filtering that detects:
+- Jailbreak patterns (e.g., "ignore previous instructions", "pretend you are...")
+- Prompt leaking attempts (e.g., "what is your system prompt?")
+- Obfuscation techniques (zero-width characters, excessive Unicode)
+- Input length violations
+
+#### Guardrails (`src/guardrails.py`)
+
+Multi-layer validation system:
+- **Input Validation**: Checks user queries before processing
+- **Output Validation**: Validates bot responses before returning
+- **Fail-Closed**: Blocks on errors (secure default)
+- **Audit Logging**: Records all security events
+
+#### System Prompt Hardening (`src/rag_agent.py`)
+
+Hardened system prompt includes:
+- Explicit CORE RULES that must never be violated
+- Injection resistance instructions
+- Instructions to treat user input as untrusted data
+- Clear refusal patterns for security-related queries
+
+### Configuration
+
+Security settings can be configured via environment variables:
+
+```env
+# Guardrails configuration
+RAG_GUARDRAILS_PATH=guardrails.yaml  # Path to guardrails YAML file
+
+# Security behavior (in code)
+fail_closed=True  # Block on errors (secure default)
+```
+
+### Testing Security
+
+Run the comprehensive security test suite:
+
+```bash
+# Run all security tests
+pytest tests/test_security.py -v
+
+# Test specific attack vectors
+pytest tests/test_security.py::TestJailbreakDetection -v
+pytest tests/test_security.py::TestPromptLeakingDetection -v
+```
+
+The test suite includes:
+- 8 jailbreak pattern tests
+- 6 prompt leaking tests
+- 5 legitimate query tests (ensures no false positives)
+- Obfuscation detection tests
+- Sanitization tests
+- Audit logging tests
+
+**Current Status**: 24/24 tests passing (100% pass rate)
+
+### Security Best Practices
+
+1. **Keep Patterns Updated**: Regularly update attack patterns in `src/security.py` as new threats emerge
+2. **Monitor Audit Logs**: Review security audit logs for attack patterns
+3. **Regular Testing**: Run security tests in CI/CD pipeline
+4. **Review Guardrails**: Periodically review and update `guardrails.yaml` prompts
+5. **Fail-Closed**: Always use fail-closed mode in production (default)
+
+### Security Documentation
+
+For detailed security implementation plans and attack patterns, see:
+- `markdowns/security_plan.md` - Comprehensive security implementation guide
 
 ## Installation
 
