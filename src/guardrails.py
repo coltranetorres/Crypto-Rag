@@ -1,5 +1,5 @@
 """
-Guardrails validation module
+Guardrails validation module with defense-in-depth
 Extracted from RAGAgent to follow Single Responsibility Principle
 """
 from typing import Dict, Any, Optional, Tuple
@@ -8,32 +8,42 @@ import yaml
 from src.config.logging_config import get_logger
 from src.openrouter_provider import OpenRouterProvider
 from src.exceptions import GuardrailBlockedError
+from src.security import PatternBasedFilter, SecurityAuditLog
 
 logger = get_logger(__name__)
 
 
 class GuardrailsValidator:
     """
-    Validates user input and bot responses using LLM-based guardrails
+    Multi-layer guardrails: Pattern matching + LLM-based validation
     """
     
     def __init__(
         self,
         provider: OpenRouterProvider,
-        guardrails_path: Optional[str] = None
+        guardrails_path: Optional[str] = None,
+        fail_closed: bool = True  # Secure by default
     ):
         """
-        Initialize guardrails validator
+        Initialize guardrails validator with defense-in-depth
         
         Args:
             provider: OpenRouterProvider instance for LLM moderation
             guardrails_path: Path to guardrails YAML file
+            fail_closed: If True, block on errors (secure default). If False, allow on errors.
         """
         self.provider = provider
         self.guardrails = self._load_guardrails(guardrails_path)
+        self.fail_closed = fail_closed
+        
+        # Initialize pattern-based filter (first line of defense)
+        self.pattern_filter = PatternBasedFilter()
+        
+        # Security audit log
+        self.audit_log = SecurityAuditLog()
         
         if self.guardrails:
-            logger.info("Guardrails loaded and enabled")
+            logger.info("Guardrails loaded and enabled (defense-in-depth)")
         else:
             logger.warning("Guardrails not loaded - validation disabled")
     
@@ -88,7 +98,10 @@ class GuardrailsValidator:
     
     def validate_input(self, user_input: str) -> Tuple[bool, Optional[str]]:
         """
-        Check if user input should be blocked using guardrails
+        Multi-layer input validation
+        
+        Layer 1: Pattern-based filtering (fast, no cost)
+        Layer 2: LLM-based content analysis (thorough)
         
         Args:
             user_input: User input to validate
@@ -96,16 +109,23 @@ class GuardrailsValidator:
         Returns:
             Tuple of (should_block, reason) - True if should block, False if allow
         """
+        # LAYER 1: Pattern-based pre-filter
+        should_block, reason, attack_type = self.pattern_filter.check_input(user_input)
+        if should_block:
+            self.audit_log.log_blocked(user_input, reason, attack_type, "pattern")
+            return True, reason
+        
+        # LAYER 2: LLM-based guardrail
         if not self.guardrails:
             return False, None
         
         prompt_template = self._get_prompt("input", "self_check_input")
         if not prompt_template:
-            logger.warning("Input guardrail prompt not found in configuration")
             return False, None
         
-        # Replace template variable
-        prompt = prompt_template.replace("{{ user_input }}", user_input)
+        # Sanitize input before inserting into prompt
+        sanitized_input = self.pattern_filter.sanitize_for_prompt(user_input)
+        prompt = prompt_template.replace("{{ user_input }}", sanitized_input)
         
         messages = [
             {
@@ -123,17 +143,18 @@ class GuardrailsValidator:
             
             answer = response.content.strip().lower()
             
-            # Check if answer indicates blocking
             if "yes" in answer:
-                reason = "Input blocked by guardrails"
-                logger.info(f"Input blocked: {user_input[:50]}...")
+                reason = "Input blocked by content policy"
+                self.audit_log.log_blocked(user_input, reason, "llm_detected", "llm")
                 return True, reason
-            else:
-                return False, None
-                
+            
+            return False, None
+            
         except Exception as e:
-            logger.error(f"Input guardrail check failed: {e}", exc_info=True)
-            # On error, allow the input (fail open)
+            logger.error(f"LLM guardrail check failed: {e}", exc_info=True)
+            # FAIL CLOSED - block on error (secure default)
+            if self.fail_closed:
+                return True, "Security check unavailable - request blocked"
             return False, None
     
     def validate_output(self, user_input: str, bot_response: str) -> Tuple[bool, Optional[str]]:
@@ -155,9 +176,13 @@ class GuardrailsValidator:
             logger.warning("Output guardrail prompt not found in configuration")
             return False, None
         
+        # Sanitize inputs before inserting into prompt
+        sanitized_input = self.pattern_filter.sanitize_for_prompt(user_input)
+        sanitized_response = self.pattern_filter.sanitize_for_prompt(bot_response)
+        
         # Replace template variables
-        prompt = prompt_template.replace("{{ user_input }}", user_input)
-        prompt = prompt.replace("{{ bot_response }}", bot_response)
+        prompt = prompt_template.replace("{{ user_input }}", sanitized_input)
+        prompt = prompt.replace("{{ bot_response }}", sanitized_response)
         
         messages = [
             {
@@ -177,14 +202,16 @@ class GuardrailsValidator:
             
             # Check if answer indicates blocking
             if "yes" in answer:
-                reason = "Response blocked by guardrails"
-                logger.info(f"Response blocked for input: {user_input[:50]}...")
+                reason = "Response blocked by content policy"
+                self.audit_log.log_blocked(user_input, reason, "output_violation", "llm")
                 return True, reason
             else:
                 return False, None
                 
         except Exception as e:
             logger.error(f"Output guardrail check failed: {e}", exc_info=True)
-            # On error, allow the response (fail open)
+            # On error, fail closed (secure default)
+            if self.fail_closed:
+                return True, "Security check unavailable - response blocked"
             return False, None
 
